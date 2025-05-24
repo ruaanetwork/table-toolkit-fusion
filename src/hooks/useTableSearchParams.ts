@@ -30,7 +30,7 @@ export function useTableSearchParams() {
 
       navigate({
         to: "/",
-        search: newParams,
+        search: newParams as any,
         replace: true,
       })
     },
