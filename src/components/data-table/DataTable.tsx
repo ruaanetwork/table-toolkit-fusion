@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, Filter, Search, Plus, Trash2, Edit } from "lucide-react"
+import { ChevronDown, Search, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -39,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { MultiSelectFilter } from "./MultiSelectFilter"
+import { useTableSearchParams } from "@/hooks/useTableSearchParams"
 
 export interface User {
   id: string
@@ -68,42 +70,86 @@ export function DataTable<TData, TValue>({
   onDelete,
   loading = false,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const { searchParams, updateSearchParams } = useTableSearchParams()
+  
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [globalFilter, setGlobalFilter] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<string>("all")
+
+  // Initialize state from search params
+  const sorting: SortingState = searchParams.sortBy 
+    ? [{ id: searchParams.sortBy, desc: searchParams.sortOrder === "desc" }]
+    : []
+
+  const globalFilter = searchParams.search || ""
+  const statusFilter = searchParams.status || []
+  const roleFilter = searchParams.roles || []
+
+  // Get unique roles from data for the multiselect filter
+  const uniqueRoles = React.useMemo(() => {
+    const roles = new Set<string>()
+    data.forEach((item: any) => {
+      if (item.role) roles.add(item.role)
+    })
+    return Array.from(roles)
+  }, [data])
 
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onSortingChange: (updater) => {
+      const newSorting = typeof updater === "function" ? updater(sorting) : updater
+      const sortState = newSorting[0]
+      updateSearchParams({
+        sortBy: sortState?.id,
+        sortOrder: sortState?.desc ? "desc" : "asc",
+      })
+    },
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: (value) => {
+      updateSearchParams({ search: value || undefined })
+    },
     globalFilterFn: "includesString",
     state: {
       sorting,
-      columnFilters,
+      columnFilters: [],
       columnVisibility,
       rowSelection,
       globalFilter,
+      pagination: {
+        pageIndex: (searchParams.page || 1) - 1,
+        pageSize: searchParams.pageSize || 10,
+      },
     },
   })
 
+  // Apply filters based on search params
   React.useEffect(() => {
-    if (statusFilter !== "all") {
-      table.getColumn("status")?.setFilterValue(statusFilter)
-    } else {
-      table.getColumn("status")?.setFilterValue("")
+    const filters: ColumnFiltersState = []
+    
+    if (statusFilter.length > 0) {
+      filters.push({ id: "status", value: statusFilter })
     }
-  }, [statusFilter, table])
+    
+    if (roleFilter.length > 0) {
+      filters.push({ id: "role", value: roleFilter })
+    }
+
+    table.setColumnFilters(filters)
+  }, [statusFilter, roleFilter, table])
+
+  // Update pagination in search params
+  React.useEffect(() => {
+    const { pageIndex, pageSize } = table.getState().pagination
+    updateSearchParams({
+      page: pageIndex + 1,
+      pageSize,
+    })
+  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updateSearchParams])
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
@@ -116,23 +162,25 @@ export function DataTable<TData, TValue>({
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={`Search ${searchKey}...`}
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(String(event.target.value))}
+              value={globalFilter}
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
               className="pl-8 max-w-sm"
             />
           </div>
           
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter
+            title="Status"
+            options={["active", "inactive"]}
+            values={statusFilter}
+            onValuesChange={(values) => updateSearchParams({ status: values })}
+          />
+
+          <MultiSelectFilter
+            title="Role"
+            options={uniqueRoles}
+            values={roleFilter}
+            onValuesChange={(values) => updateSearchParams({ roles: values })}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

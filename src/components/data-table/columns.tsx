@@ -1,6 +1,6 @@
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,7 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
       <Checkbox
         checked={
           table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
+          (table.getIsSomePageRowsSelected() ? "indeterminate" : false)
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
@@ -32,13 +32,20 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
   {
     accessorKey: "name",
     header: ({ column }) => {
+      const sortDirection = column.getIsSorted()
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          {sortDirection === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : sortDirection === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
         </Button>
       )
     },
@@ -47,13 +54,20 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
   {
     accessorKey: "email",
     header: ({ column }) => {
+      const sortDirection = column.getIsSorted()
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Email
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          {sortDirection === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : sortDirection === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
         </Button>
       )
     },
@@ -62,13 +76,20 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
   {
     accessorKey: "role",
     header: ({ column }) => {
+      const sortDirection = column.getIsSorted()
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Role
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          {sortDirection === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : sortDirection === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
         </Button>
       )
     },
@@ -93,13 +114,20 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
   {
     accessorKey: "createdAt",
     header: ({ column }) => {
+      const sortDirection = column.getIsSorted()
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Created At
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          {sortDirection === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : sortDirection === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
         </Button>
       )
     },
