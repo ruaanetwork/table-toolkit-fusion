@@ -75,7 +75,7 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
-  // Initialize state from search params with memoization to prevent re-renders
+  // Initialize state from search params
   const sorting: SortingState = React.useMemo(() => {
     return searchParams.sortBy 
       ? [{ id: searchParams.sortBy, desc: searchParams.sortOrder === "desc" }]
@@ -107,26 +107,31 @@ export function DataTable<TData, TValue>({
     }
   }, [])
 
+  // Stable handlers to prevent re-renders
+  const handleSortingChange = React.useCallback((updater: any) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater
+    const sortState = newSorting[0]
+    updateSearchParams({
+      sortBy: sortState?.id,
+      sortOrder: sortState?.desc ? "desc" : "asc",
+    })
+  }, [sorting, updateSearchParams])
+
+  const handleGlobalFilterChange = React.useCallback((value: string) => {
+    updateSearchParams({ search: value || undefined })
+  }, [updateSearchParams])
+
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: React.useCallback((updater) => {
-      const newSorting = typeof updater === "function" ? updater(sorting) : updater
-      const sortState = newSorting[0]
-      updateSearchParams({
-        sortBy: sortState?.id,
-        sortOrder: sortState?.desc ? "desc" : "asc",
-      })
-    }, [sorting, updateSearchParams]),
+    onSortingChange: handleSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: React.useCallback((value) => {
-      updateSearchParams({ search: value || undefined })
-    }, [updateSearchParams]),
+    onGlobalFilterChange: handleGlobalFilterChange,
     globalFilterFn,
     state: {
       sorting,
@@ -156,27 +161,16 @@ export function DataTable<TData, TValue>({
     table.setColumnFilters(filters)
   }, [statusFilter, roleFilter, table])
 
-  // Update pagination in search params with debouncing
-  const updatePagination = React.useCallback(
-    React.useMemo(() => {
-      let timeoutId: NodeJS.Timeout
-      return (pageIndex: number, pageSize: number) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
-          updateSearchParams({
-            page: pageIndex + 1,
-            pageSize,
-          })
-        }, 100)
-      }
-    }, [updateSearchParams]),
-    [updateSearchParams]
-  )
-
+  // Handle pagination changes
   React.useEffect(() => {
     const { pageIndex, pageSize } = table.getState().pagination
-    updatePagination(pageIndex, pageSize)
-  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updatePagination])
+    if (pageIndex !== (searchParams.page || 1) - 1 || pageSize !== (searchParams.pageSize || 10)) {
+      updateSearchParams({
+        page: pageIndex + 1,
+        pageSize,
+      })
+    }
+  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updateSearchParams, searchParams.page, searchParams.pageSize])
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
 

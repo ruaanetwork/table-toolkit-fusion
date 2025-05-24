@@ -27,6 +27,17 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Index,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      search: search.search as string,
+      status: search.status as string[],
+      roles: search.roles as string[],
+      sortBy: search.sortBy as string,
+      sortOrder: search.sortOrder as "asc" | "desc",
+      page: search.page ? Number(search.page) : undefined,
+      pageSize: search.pageSize ? Number(search.pageSize) : undefined,
+    }
+  },
 })
 
 // Create not found route

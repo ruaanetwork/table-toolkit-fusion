@@ -14,7 +14,7 @@ interface TableSearchParams {
 
 export function useTableSearchParams() {
   const navigate = useNavigate()
-  const searchParams = useSearch({ strict: false }) as TableSearchParams
+  const searchParams = useSearch({ from: "/" }) as TableSearchParams
 
   const updateSearchParams = useCallback(
     (updates: Partial<TableSearchParams>) => {
@@ -29,6 +29,7 @@ export function useTableSearchParams() {
       })
 
       navigate({
+        to: "/",
         search: newParams,
         replace: true,
       })
