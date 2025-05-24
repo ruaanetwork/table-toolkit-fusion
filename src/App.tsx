@@ -40,7 +40,6 @@ const notFoundRoute = createRoute({
 const routeTree = rootRoute.addChildren([indexRoute, notFoundRoute])
 const router = createRouter({ 
   routeTree,
-  defaultPreload: 'intent',
 })
 
 // Register the router instance for type safety

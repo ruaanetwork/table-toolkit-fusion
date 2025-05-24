@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, Search, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -75,10 +75,12 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
-  // Initialize state from search params
-  const sorting: SortingState = searchParams.sortBy 
-    ? [{ id: searchParams.sortBy, desc: searchParams.sortOrder === "desc" }]
-    : []
+  // Initialize state from search params with memoization to prevent re-renders
+  const sorting: SortingState = React.useMemo(() => {
+    return searchParams.sortBy 
+      ? [{ id: searchParams.sortBy, desc: searchParams.sortOrder === "desc" }]
+      : []
+  }, [searchParams.sortBy, searchParams.sortOrder])
 
   const globalFilter = searchParams.search || ""
   const statusFilter = searchParams.status || []
@@ -93,27 +95,39 @@ export function DataTable<TData, TValue>({
     return Array.from(roles)
   }, [data])
 
+  // Custom global filter function for name, email search
+  const globalFilterFn = React.useMemo(() => {
+    return (row: any, columnId: string, value: string) => {
+      const user = row.original as User
+      const searchValue = value.toLowerCase()
+      return (
+        user.name?.toLowerCase().includes(searchValue) ||
+        user.email?.toLowerCase().includes(searchValue)
+      )
+    }
+  }, [])
+
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: (updater) => {
+    onSortingChange: React.useCallback((updater) => {
       const newSorting = typeof updater === "function" ? updater(sorting) : updater
       const sortState = newSorting[0]
       updateSearchParams({
         sortBy: sortState?.id,
         sortOrder: sortState?.desc ? "desc" : "asc",
       })
-    },
+    }, [sorting, updateSearchParams]),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: (value) => {
+    onGlobalFilterChange: React.useCallback((value) => {
       updateSearchParams({ search: value || undefined })
-    },
-    globalFilterFn: "includesString",
+    }, [updateSearchParams]),
+    globalFilterFn,
     state: {
       sorting,
       columnFilters: [],
@@ -142,14 +156,27 @@ export function DataTable<TData, TValue>({
     table.setColumnFilters(filters)
   }, [statusFilter, roleFilter, table])
 
-  // Update pagination in search params
+  // Update pagination in search params with debouncing
+  const updatePagination = React.useCallback(
+    React.useMemo(() => {
+      let timeoutId: NodeJS.Timeout
+      return (pageIndex: number, pageSize: number) => {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+          updateSearchParams({
+            page: pageIndex + 1,
+            pageSize,
+          })
+        }, 100)
+      }
+    }, [updateSearchParams]),
+    [updateSearchParams]
+  )
+
   React.useEffect(() => {
     const { pageIndex, pageSize } = table.getState().pagination
-    updateSearchParams({
-      page: pageIndex + 1,
-      pageSize,
-    })
-  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updateSearchParams])
+    updatePagination(pageIndex, pageSize)
+  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updatePagination])
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
@@ -161,7 +188,7 @@ export function DataTable<TData, TValue>({
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={`Search ${searchKey}...`}
+              placeholder="Search name or email..."
               value={globalFilter}
               onChange={(event) => table.setGlobalFilter(event.target.value)}
               className="pl-8 max-w-sm"
@@ -238,14 +265,32 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort()
+                  const sorted = header.column.getIsSorted()
+                  
                   return (
                     <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
+                      {header.isPlaceholder ? null : (
+                        <div
+                          className={canSort ? "flex items-center space-x-2 cursor-pointer select-none" : ""}
+                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                        >
+                          {flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                          {canSort && (
+                            <span className="flex flex-col">
+                              <ArrowUp 
+                                className={`h-3 w-3 ${sorted === "asc" ? "text-foreground" : "text-muted-foreground"}`} 
+                              />
+                              <ArrowDown 
+                                className={`h-3 w-3 -mt-1 ${sorted === "desc" ? "text-foreground" : "text-muted-foreground"}`} 
+                              />
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </TableHead>
                   )
                 })}

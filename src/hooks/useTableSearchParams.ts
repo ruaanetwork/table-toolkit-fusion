@@ -29,7 +29,7 @@ export function useTableSearchParams() {
       })
 
       navigate({
-        search: (prev: any) => ({ ...prev, ...newParams }),
+        search: newParams,
         replace: true,
       })
     },
