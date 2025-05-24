@@ -18,7 +18,8 @@ export function useTableSearchParams() {
 
   const updateSearchParams = useCallback(
     (updates: Partial<TableSearchParams>) => {
-      const newParams = { ...searchParams, ...updates }
+      const currentParams = searchParams || {}
+      const newParams = { ...currentParams, ...updates }
       
       // Clean up empty arrays and undefined values
       Object.keys(newParams).forEach((key) => {
@@ -30,7 +31,7 @@ export function useTableSearchParams() {
 
       navigate({
         to: "/",
-        search: newParams as any,
+        search: newParams,
         replace: true,
       })
     },
@@ -38,7 +39,7 @@ export function useTableSearchParams() {
   )
 
   return {
-    searchParams,
+    searchParams: searchParams || {},
     updateSearchParams,
   }
 }

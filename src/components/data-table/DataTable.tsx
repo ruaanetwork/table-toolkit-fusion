@@ -75,16 +75,16 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
-  // Initialize state from search params
+  // Initialize state from search params with proper defaults
   const sorting: SortingState = React.useMemo(() => {
-    return searchParams.sortBy 
+    return searchParams?.sortBy 
       ? [{ id: searchParams.sortBy, desc: searchParams.sortOrder === "desc" }]
       : []
-  }, [searchParams.sortBy, searchParams.sortOrder])
+  }, [searchParams?.sortBy, searchParams?.sortOrder])
 
-  const globalFilter = searchParams.search || ""
-  const statusFilter = searchParams.status || []
-  const roleFilter = searchParams.roles || []
+  const globalFilter = searchParams?.search || ""
+  const statusFilter = searchParams?.status || []
+  const roleFilter = searchParams?.roles || []
 
   // Get unique roles from data for the multiselect filter
   const uniqueRoles = React.useMemo(() => {
@@ -107,19 +107,31 @@ export function DataTable<TData, TValue>({
     }
   }, [])
 
-  // Stable handlers to prevent re-renders
+  // Stable handlers to prevent re-renders - with debouncing
   const handleSortingChange = React.useCallback((updater: any) => {
     const newSorting = typeof updater === "function" ? updater(sorting) : updater
     const sortState = newSorting[0]
-    updateSearchParams({
-      sortBy: sortState?.id,
-      sortOrder: sortState?.desc ? "desc" : "asc",
-    })
-  }, [sorting, updateSearchParams])
+    
+    // Prevent unnecessary updates
+    if (sortState?.id !== searchParams?.sortBy || 
+        (sortState?.desc ? "desc" : "asc") !== searchParams?.sortOrder) {
+      updateSearchParams({
+        sortBy: sortState?.id,
+        sortOrder: sortState?.desc ? "desc" : "asc",
+      })
+    }
+  }, [sorting, updateSearchParams, searchParams?.sortBy, searchParams?.sortOrder])
 
   const handleGlobalFilterChange = React.useCallback((value: string) => {
-    updateSearchParams({ search: value || undefined })
-  }, [updateSearchParams])
+    // Debounce search updates
+    const timeoutId = setTimeout(() => {
+      if (value !== searchParams?.search) {
+        updateSearchParams({ search: value || undefined })
+      }
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
+  }, [updateSearchParams, searchParams?.search])
 
   const table = useReactTable({
     data,
@@ -131,7 +143,6 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: handleGlobalFilterChange,
     globalFilterFn,
     state: {
       sorting,
@@ -140,13 +151,13 @@ export function DataTable<TData, TValue>({
       rowSelection,
       globalFilter,
       pagination: {
-        pageIndex: (searchParams.page || 1) - 1,
-        pageSize: searchParams.pageSize || 10,
+        pageIndex: ((searchParams?.page || 1) - 1),
+        pageSize: searchParams?.pageSize || 10,
       },
     },
   })
 
-  // Apply filters based on search params
+  // Apply filters based on search params - memoized to prevent loops
   React.useEffect(() => {
     const filters: ColumnFiltersState = []
     
@@ -161,17 +172,6 @@ export function DataTable<TData, TValue>({
     table.setColumnFilters(filters)
   }, [statusFilter, roleFilter, table])
 
-  // Handle pagination changes
-  React.useEffect(() => {
-    const { pageIndex, pageSize } = table.getState().pagination
-    if (pageIndex !== (searchParams.page || 1) - 1 || pageSize !== (searchParams.pageSize || 10)) {
-      updateSearchParams({
-        page: pageIndex + 1,
-        pageSize,
-      })
-    }
-  }, [table.getState().pagination.pageIndex, table.getState().pagination.pageSize, updateSearchParams, searchParams.page, searchParams.pageSize])
-
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
   return (
@@ -184,7 +184,10 @@ export function DataTable<TData, TValue>({
             <Input
               placeholder="Search name or email..."
               value={globalFilter}
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
+              onChange={(event) => {
+                table.setGlobalFilter(event.target.value)
+                handleGlobalFilterChange(event.target.value)
+              }}
               className="pl-8 max-w-sm"
             />
           </div>
@@ -341,6 +344,7 @@ export function DataTable<TData, TValue>({
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
                 table.setPageSize(Number(value))
+                updateSearchParams({ pageSize: Number(value) })
               }}
             >
               <SelectTrigger className="h-8 w-[70px]">
@@ -363,7 +367,10 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.setPageIndex(0)}
+              onClick={() => {
+                table.setPageIndex(0)
+                updateSearchParams({ page: 1 })
+              }}
               disabled={!table.getCanPreviousPage()}
             >
               <span className="sr-only">Go to first page</span>
@@ -372,7 +379,10 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
+              onClick={() => {
+                table.previousPage()
+                updateSearchParams({ page: table.getState().pagination.pageIndex })
+              }}
               disabled={!table.getCanPreviousPage()}
             >
               <span className="sr-only">Go to previous page</span>
@@ -381,7 +391,10 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
+              onClick={() => {
+                table.nextPage()
+                updateSearchParams({ page: table.getState().pagination.pageIndex + 2 })
+              }}
               disabled={!table.getCanNextPage()}
             >
               <span className="sr-only">Go to next page</span>
@@ -390,7 +403,10 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              onClick={() => {
+                table.setPageIndex(table.getPageCount() - 1)
+                updateSearchParams({ page: table.getPageCount() })
+              }}
               disabled={!table.getCanNextPage()}
             >
               <span className="sr-only">Go to last page</span>

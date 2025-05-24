@@ -27,17 +27,6 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Index,
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      search: (search.search as string) || undefined,
-      status: (search.status as string[]) || undefined,
-      roles: (search.roles as string[]) || undefined,
-      sortBy: (search.sortBy as string) || undefined,
-      sortOrder: (search.sortOrder as "asc" | "desc") || undefined,
-      page: search.page ? Number(search.page) : undefined,
-      pageSize: search.pageSize ? Number(search.pageSize) : undefined,
-    }
-  },
 })
 
 // Create not found route
@@ -51,7 +40,6 @@ const notFoundRoute = createRoute({
 const routeTree = rootRoute.addChildren([indexRoute, notFoundRoute])
 const router = createRouter({ 
   routeTree,
-  defaultPreload: 'intent',
 })
 
 // Register the router instance for type safety
