@@ -1,12 +1,16 @@
-
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUp, ArrowDown, ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { User } from "./DataTable"
+import { ActionButtons } from "./ActionButtons"
 
-export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] => [
+export const createColumns = (
+  onEdit?: (user: User) => void,
+  onDelete?: (user: User) => void,
+  onQuickUpdate?: (user: User) => void
+): ColumnDef<User>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -143,13 +147,12 @@ export const createColumns = (onEdit?: (user: User) => void): ColumnDef<User>[] 
       const user = row.original
 
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onEdit?.(user)}
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
+        <ActionButtons
+          user={user}
+          onEdit={onEdit || (() => {})}
+          onDelete={onDelete || (() => {})}
+          onQuickUpdate={onQuickUpdate || (() => {})}
+        />
       )
     },
   },

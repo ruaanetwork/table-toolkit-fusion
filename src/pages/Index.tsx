@@ -5,32 +5,60 @@ import { createColumns } from "@/components/data-table/columns"
 import { UserDialog } from "@/components/data-table/UserDialog"
 import { User } from "@/components/data-table/DataTable"
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUsers } from "@/hooks/useUsers"
+import { useToast } from "@/hooks/use-toast"
 
 const Index = () => {
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingUser, setEditingUser] = React.useState<User | null>(null)
+  const { toast } = useToast()
 
   const { data: users = [], isLoading } = useUsers()
   const createUserMutation = useCreateUser()
   const updateUserMutation = useUpdateUser()
   const deleteUsersMutation = useDeleteUsers()
 
-  const handleEdit = (user: User) => {
+  const handleEdit = React.useCallback((user: User) => {
+    console.log("Edit user:", user.id)
     setEditingUser(user)
     setDialogOpen(true)
-  }
+  }, [])
 
-  const handleCreate = () => {
+  const handleCreate = React.useCallback(() => {
+    console.log("Create new user")
     setEditingUser(null)
     setDialogOpen(true)
-  }
+  }, [])
 
-  const handleDelete = (users: User[]) => {
+  const handleDelete = React.useCallback((users: User[]) => {
+    console.log("Delete users:", users.map(u => u.id))
     const ids = users.map(user => user.id)
     deleteUsersMutation.mutate(ids)
-  }
+  }, [deleteUsersMutation])
 
-  const handleSave = (data: Omit<User, "id" | "createdAt">) => {
+  const handleSingleDelete = React.useCallback((user: User) => {
+    console.log("Delete single user:", user.id)
+    deleteUsersMutation.mutate([user.id])
+  }, [deleteUsersMutation])
+
+  const handleQuickUpdate = React.useCallback((user: User) => {
+    console.log("Quick update user:", user.id)
+    // Toggle status for quick update
+    const newStatus = user.status === "active" ? "inactive" : "active"
+    updateUserMutation.mutate(
+      { id: user.id, data: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: `User status updated to ${newStatus}`,
+          })
+        },
+      }
+    )
+  }, [updateUserMutation, toast])
+
+  const handleSave = React.useCallback((data: Omit<User, "id" | "createdAt">) => {
+    console.log("Save user data:", data)
     if (editingUser) {
       updateUserMutation.mutate(
         { id: editingUser.id, data },
@@ -48,9 +76,12 @@ const Index = () => {
         },
       })
     }
-  }
+  }, [editingUser, updateUserMutation, createUserMutation])
 
-  const columns = createColumns(handleEdit)
+  const columns = React.useMemo(() => 
+    createColumns(handleEdit, handleSingleDelete, handleQuickUpdate), 
+    [handleEdit, handleSingleDelete, handleQuickUpdate]
+  )
 
   return (
     <div className="min-h-screen bg-gray-50/30">

@@ -18,6 +18,7 @@ export function useTableSearchParams() {
 
   const updateSearchParams = useCallback(
     (updates: Partial<TableSearchParams>) => {
+      console.log("Updating search params:", updates)
       const currentParams = searchParams || {}
       const newParams = { ...currentParams, ...updates }
       
@@ -29,11 +30,15 @@ export function useTableSearchParams() {
         }
       })
 
-      navigate({
-        to: "/",
-        search: newParams as any,
-        replace: true,
-      })
+      try {
+        navigate({
+          to: "/",
+          search: newParams,
+          replace: true,
+        })
+      } catch (error) {
+        console.error("Navigation error:", error)
+      }
     },
     [navigate, searchParams]
   )

@@ -29,13 +29,13 @@ const indexRoute = createRoute({
   component: Index,
   validateSearch: (search: Record<string, unknown>) => {
     return {
-      search: search.search as string,
-      status: search.status as string[],
-      roles: search.roles as string[],
-      sortBy: search.sortBy as string,
-      sortOrder: search.sortOrder as "asc" | "desc",
-      page: search.page as number,
-      pageSize: search.pageSize as number,
+      search: (search.search as string) || undefined,
+      status: (search.status as string[]) || undefined,
+      roles: (search.roles as string[]) || undefined,
+      sortBy: (search.sortBy as string) || undefined,
+      sortOrder: (search.sortOrder as "asc" | "desc") || undefined,
+      page: (search.page as number) || undefined,
+      pageSize: (search.pageSize as number) || undefined,
     }
   },
 })
@@ -51,8 +51,7 @@ const notFoundRoute = createRoute({
 const routeTree = rootRoute.addChildren([indexRoute, notFoundRoute])
 const router = createRouter({ 
   routeTree,
-  defaultPreload: 'intent',
-})
+} as any)
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {
