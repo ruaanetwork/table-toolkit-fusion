@@ -1,6 +1,6 @@
 
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { useCallback } from "react"
+import { useCallback, useRef } from "react"
 
 interface TableSearchParams {
   search?: string
@@ -15,10 +15,18 @@ interface TableSearchParams {
 export function useTableSearchParams() {
   const navigate = useNavigate()
   const searchParams = useSearch({ from: "/" }) as TableSearchParams
+  const isNavigatingRef = useRef(false)
 
   const updateSearchParams = useCallback(
     (updates: Partial<TableSearchParams>) => {
       console.log("Updating search params:", updates)
+      
+      // Prevent multiple simultaneous navigation calls
+      if (isNavigatingRef.current) {
+        console.log("Navigation already in progress, skipping")
+        return
+      }
+
       const currentParams = searchParams || {}
       const newParams = { ...currentParams, ...updates }
       
@@ -30,6 +38,15 @@ export function useTableSearchParams() {
         }
       })
 
+      // Check if params actually changed to prevent unnecessary navigation
+      const paramsChanged = JSON.stringify(currentParams) !== JSON.stringify(newParams)
+      if (!paramsChanged) {
+        console.log("No params changed, skipping navigation")
+        return
+      }
+
+      isNavigatingRef.current = true
+      
       try {
         navigate({
           to: "/",
@@ -38,6 +55,11 @@ export function useTableSearchParams() {
         })
       } catch (error) {
         console.error("Navigation error:", error)
+      } finally {
+        // Reset the flag after a short delay
+        setTimeout(() => {
+          isNavigatingRef.current = false
+        }, 100)
       }
     },
     [navigate, searchParams]

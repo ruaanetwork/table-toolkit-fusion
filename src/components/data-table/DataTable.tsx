@@ -74,6 +74,7 @@ export function DataTable<TData, TValue>({
   
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const [localSearchValue, setLocalSearchValue] = React.useState(searchParams?.search || "")
 
   // Initialize state from search params with proper defaults
   const sorting: SortingState = React.useMemo(() => {
@@ -107,31 +108,33 @@ export function DataTable<TData, TValue>({
     }
   }, [])
 
-  // Stable handlers to prevent re-renders - with debouncing
+  // Debounced search handler
+  const debouncedSearchRef = React.useRef<NodeJS.Timeout>()
+  const handleSearchChange = React.useCallback((value: string) => {
+    setLocalSearchValue(value)
+    
+    if (debouncedSearchRef.current) {
+      clearTimeout(debouncedSearchRef.current)
+    }
+    
+    debouncedSearchRef.current = setTimeout(() => {
+      console.log("Debounced search update:", value)
+      updateSearchParams({ search: value || undefined })
+    }, 300)
+  }, [updateSearchParams])
+
+  // Stable handlers to prevent re-renders
   const handleSortingChange = React.useCallback((updater: any) => {
     const newSorting = typeof updater === "function" ? updater(sorting) : updater
     const sortState = newSorting[0]
     
-    // Prevent unnecessary updates
-    if (sortState?.id !== searchParams?.sortBy || 
-        (sortState?.desc ? "desc" : "asc") !== searchParams?.sortOrder) {
-      updateSearchParams({
-        sortBy: sortState?.id,
-        sortOrder: sortState?.desc ? "desc" : "asc",
-      })
-    }
-  }, [sorting, updateSearchParams, searchParams?.sortBy, searchParams?.sortOrder])
-
-  const handleGlobalFilterChange = React.useCallback((value: string) => {
-    // Debounce search updates
-    const timeoutId = setTimeout(() => {
-      if (value !== searchParams?.search) {
-        updateSearchParams({ search: value || undefined })
-      }
-    }, 300)
+    console.log("Sorting change:", sortState)
     
-    return () => clearTimeout(timeoutId)
-  }, [updateSearchParams, searchParams?.search])
+    updateSearchParams({
+      sortBy: sortState?.id,
+      sortOrder: sortState?.desc ? "desc" : "asc",
+    })
+  }, [sorting, updateSearchParams])
 
   const table = useReactTable({
     data,
@@ -183,10 +186,9 @@ export function DataTable<TData, TValue>({
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search name or email..."
-              value={globalFilter}
+              value={localSearchValue}
               onChange={(event) => {
-                table.setGlobalFilter(event.target.value)
-                handleGlobalFilterChange(event.target.value)
+                handleSearchChange(event.target.value)
               }}
               className="pl-8 max-w-sm"
             />
@@ -196,14 +198,20 @@ export function DataTable<TData, TValue>({
             title="Status"
             options={["active", "inactive"]}
             values={statusFilter}
-            onValuesChange={(values) => updateSearchParams({ status: values })}
+            onValuesChange={(values) => {
+              console.log("Status filter change:", values)
+              updateSearchParams({ status: values })
+            }}
           />
 
           <MultiSelectFilter
             title="Role"
             options={uniqueRoles}
             values={roleFilter}
-            onValuesChange={(values) => updateSearchParams({ roles: values })}
+            onValuesChange={(values) => {
+              console.log("Role filter change:", values)
+              updateSearchParams({ roles: values })
+            }}
           />
 
           <DropdownMenu>
@@ -239,7 +247,10 @@ export function DataTable<TData, TValue>({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => onDelete?.(selectedRows.map(row => row.original))}
+              onClick={() => {
+                console.log("Delete button clicked")
+                onDelete?.(selectedRows.map(row => row.original))
+              }}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete ({selectedRows.length})
@@ -247,7 +258,10 @@ export function DataTable<TData, TValue>({
           )}
           
           {onCreate && (
-            <Button onClick={onCreate} size="sm">
+            <Button onClick={() => {
+              console.log("Create button clicked")
+              onCreate()
+            }} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Create New
             </Button>
@@ -343,6 +357,7 @@ export function DataTable<TData, TValue>({
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
+                console.log("Page size change:", value)
                 table.setPageSize(Number(value))
                 updateSearchParams({ pageSize: Number(value) })
               }}
@@ -368,6 +383,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => {
+                console.log("First page clicked")
                 table.setPageIndex(0)
                 updateSearchParams({ page: 1 })
               }}
@@ -380,6 +396,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => {
+                console.log("Previous page clicked")
                 table.previousPage()
                 updateSearchParams({ page: table.getState().pagination.pageIndex })
               }}
@@ -392,6 +409,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => {
+                console.log("Next page clicked")
                 table.nextPage()
                 updateSearchParams({ page: table.getState().pagination.pageIndex + 2 })
               }}
@@ -404,6 +422,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0"
               onClick={() => {
+                console.log("Last page clicked")
                 table.setPageIndex(table.getPageCount() - 1)
                 updateSearchParams({ page: table.getPageCount() })
               }}
