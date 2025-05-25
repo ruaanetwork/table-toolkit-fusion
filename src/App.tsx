@@ -48,10 +48,11 @@ const notFoundRoute = createRoute({
   component: NotFound,
 })
 
-// Create router
+// Create router with proper typing
 const routeTree = rootRoute.addChildren([indexRoute, notFoundRoute])
 const router = createRouter({ 
   routeTree,
+  defaultPreload: 'intent',
 })
 
 // Register the router instance for type safety

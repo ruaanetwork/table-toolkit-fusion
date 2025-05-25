@@ -14,7 +14,7 @@ interface TableSearchParams {
 
 export function useTableSearchParams() {
   const navigate = useNavigate()
-  const searchParams = useSearch({ from: "/" }) as TableSearchParams
+  const searchParams = useSearch({ from: "/" })
   const isNavigatingRef = useRef(false)
 
   const updateSearchParams = useCallback(
@@ -27,7 +27,7 @@ export function useTableSearchParams() {
         return
       }
 
-      const currentParams = searchParams || {}
+      const currentParams = (searchParams as TableSearchParams) || {}
       const newParams = { ...currentParams, ...updates }
       
       // Clean up empty arrays and undefined values
@@ -50,7 +50,7 @@ export function useTableSearchParams() {
       try {
         navigate({
           to: "/",
-          search: newParams,
+          search: (prev: any) => ({ ...prev, ...newParams }),
           replace: true,
         })
       } catch (error) {
@@ -66,7 +66,7 @@ export function useTableSearchParams() {
   )
 
   return {
-    searchParams: searchParams || {},
+    searchParams: (searchParams as TableSearchParams) || {},
     updateSearchParams,
   }
 }
