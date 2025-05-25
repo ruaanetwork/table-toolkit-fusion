@@ -50,7 +50,7 @@ export function useTableSearchParams() {
       try {
         navigate({
           to: "/",
-          search: (prev: any) => ({ ...prev, ...newParams }),
+          search: newParams,
           replace: true,
         })
       } catch (error) {

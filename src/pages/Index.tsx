@@ -12,7 +12,7 @@ const Index = () => {
   const [editingUser, setEditingUser] = React.useState<User | null>(null)
   const { toast } = useToast()
 
-  const { data: users = [], isLoading } = useUsers()
+  const { data: users = [], isLoading, refetch } = useUsers()
   const createUserMutation = useCreateUser()
   const updateUserMutation = useUpdateUser()
   const deleteUsersMutation = useDeleteUsers()
@@ -56,6 +56,11 @@ const Index = () => {
       }
     )
   }, [updateUserMutation, toast])
+
+  const handleRefresh = React.useCallback(() => {
+    console.log("Refresh users data")
+    refetch()
+  }, [refetch])
 
   const handleSave = React.useCallback((data: Omit<User, "id" | "createdAt">) => {
     console.log("Save user data:", data)
@@ -101,6 +106,7 @@ const Index = () => {
             onEdit={handleEdit}
             onCreate={handleCreate}
             onDelete={handleDelete}
+            onRefresh={handleRefresh}
             loading={isLoading}
           />
         </div>

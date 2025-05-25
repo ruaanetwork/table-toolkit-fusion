@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react"
+import { ChevronDown, Search, Plus, Trash2, ArrowUp, ArrowDown, RefreshCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -58,6 +58,7 @@ interface DataTableProps<TData, TValue> {
   onEdit?: (row: TData) => void
   onCreate?: () => void
   onDelete?: (rows: TData[]) => void
+  onRefresh?: () => void
   loading?: boolean
 }
 
@@ -68,6 +69,7 @@ export function DataTable<TData, TValue>({
   onEdit,
   onCreate,
   onDelete,
+  onRefresh,
   loading = false,
 }: DataTableProps<TData, TValue>) {
   const { searchParams, updateSearchParams } = useTableSearchParams()
@@ -119,7 +121,7 @@ export function DataTable<TData, TValue>({
     
     debouncedSearchRef.current = setTimeout(() => {
       console.log("Debounced search update:", value)
-      updateSearchParams({ search: value || undefined })
+      updateSearchParams({ search: value || undefined, page: 1 })
     }, 300)
   }, [updateSearchParams])
 
@@ -177,20 +179,23 @@ export function DataTable<TData, TValue>({
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
+  // Clear selections when data changes
+  React.useEffect(() => {
+    setRowSelection({})
+  }, [data])
+
   return (
     <div className="w-full space-y-4">
-      {/* Header with search and actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Enhanced Header with search and actions */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search name or email..."
+              placeholder="Search users by name or email..."
               value={localSearchValue}
-              onChange={(event) => {
-                handleSearchChange(event.target.value)
-              }}
-              className="pl-8 max-w-sm"
+              onChange={(event) => handleSearchChange(event.target.value)}
+              className="pl-9"
             />
           </div>
           
@@ -200,7 +205,7 @@ export function DataTable<TData, TValue>({
             values={statusFilter}
             onValuesChange={(values) => {
               console.log("Status filter change:", values)
-              updateSearchParams({ status: values })
+              updateSearchParams({ status: values, page: 1 })
             }}
           />
 
@@ -210,17 +215,18 @@ export function DataTable<TData, TValue>({
             values={roleFilter}
             onValuesChange={(values) => {
               console.log("Role filter change:", values)
-              updateSearchParams({ roles: values })
+              updateSearchParams({ roles: values, page: 1 })
             }}
           />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                Columns <ChevronDown className="ml-2 h-4 w-4" />
+              <Button variant="outline" size="sm">
+                <ChevronDown className="mr-2 h-4 w-4" />
+                View
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white">
+            <DropdownMenuContent align="end" className="w-48">
               {table
                 .getAllColumns()
                 .filter((column) => column.getCanHide())
@@ -242,18 +248,39 @@ export function DataTable<TData, TValue>({
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           {selectedRows.length > 0 && (
+            <>
+              <Badge variant="secondary" className="mr-2">
+                {selectedRows.length} selected
+              </Badge>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  console.log("Delete button clicked")
+                  onDelete?.(selectedRows.map(row => row.original))
+                  setRowSelection({})
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </>
+          )}
+          
+          {onRefresh && (
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
               onClick={() => {
-                console.log("Delete button clicked")
-                onDelete?.(selectedRows.map(row => row.original))
+                console.log("Refresh button clicked")
+                onRefresh()
               }}
+              disabled={loading}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete ({selectedRows.length})
+              <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
           )}
           
@@ -263,27 +290,27 @@ export function DataTable<TData, TValue>({
               onCreate()
             }} size="sm">
               <Plus className="mr-2 h-4 w-4" />
-              Create New
+              Add User
             </Button>
           )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
+      {/* Enhanced Table */}
+      <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="border-b">
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort()
                   const sorted = header.column.getIsSorted()
                   
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="font-semibold">
                       {header.isPlaceholder ? null : (
                         <div
-                          className={canSort ? "flex items-center space-x-2 cursor-pointer select-none" : ""}
+                          className={canSort ? "flex items-center space-x-2 cursor-pointer select-none hover:text-accent-foreground" : ""}
                           onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                         >
                           {flexRender(
@@ -293,10 +320,10 @@ export function DataTable<TData, TValue>({
                           {canSort && (
                             <span className="flex flex-col">
                               <ArrowUp 
-                                className={`h-3 w-3 ${sorted === "asc" ? "text-foreground" : "text-muted-foreground"}`} 
+                                className={`h-3 w-3 transition-colors ${sorted === "asc" ? "text-foreground" : "text-muted-foreground"}`} 
                               />
                               <ArrowDown 
-                                className={`h-3 w-3 -mt-1 ${sorted === "desc" ? "text-foreground" : "text-muted-foreground"}`} 
+                                className={`h-3 w-3 -mt-1 transition-colors ${sorted === "desc" ? "text-foreground" : "text-muted-foreground"}`} 
                               />
                             </span>
                           )}
@@ -311,8 +338,11 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Loading...
+                <TableCell colSpan={columns.length} className="h-32 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <RefreshCcw className="h-4 w-4 animate-spin" />
+                    <span>Loading users...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
@@ -320,9 +350,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="hover:bg-muted/50 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="py-3">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -335,9 +366,15 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-32 text-center text-muted-foreground"
                 >
-                  No results.
+                  <div className="flex flex-col items-center space-y-2">
+                    <Search className="h-8 w-8 text-muted-foreground/50" />
+                    <div>
+                      <p className="text-sm font-medium">No users found</p>
+                      <p className="text-xs">Try adjusting your search or filters</p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -345,12 +382,17 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+      {/* Enhanced Pagination */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center text-sm text-muted-foreground">
+          Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} results
+          {selectedRows.length > 0 && (
+            <span className="ml-2">
+              ({selectedRows.length} selected)
+            </span>
+          )}
         </div>
+        
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
             <p className="text-sm font-medium">Rows per page</p>
@@ -359,14 +401,14 @@ export function DataTable<TData, TValue>({
               onValueChange={(value) => {
                 console.log("Page size change:", value)
                 table.setPageSize(Number(value))
-                updateSearchParams({ pageSize: Number(value) })
+                updateSearchParams({ pageSize: Number(value), page: 1 })
               }}
             >
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue placeholder={table.getState().pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((pageSize) => (
+                {[5, 10, 20, 30, 40, 50].map((pageSize) => (
                   <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>
@@ -374,10 +416,12 @@ export function DataTable<TData, TValue>({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+          
+          <div className="flex items-center text-sm font-medium">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+            {table.getPageCount() || 1}
           </div>
+          
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
