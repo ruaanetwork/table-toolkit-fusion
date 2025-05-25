@@ -22,11 +22,22 @@ const rootRoute = createRootRoute({
   ),
 })
 
-// Create index route
+// Create index route with search validation
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Index,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      search: search.search as string,
+      status: search.status as string[],
+      roles: search.roles as string[],
+      sortBy: search.sortBy as string,
+      sortOrder: search.sortOrder as "asc" | "desc",
+      page: search.page as number,
+      pageSize: search.pageSize as number,
+    }
+  },
 })
 
 // Create not found route
@@ -40,6 +51,7 @@ const notFoundRoute = createRoute({
 const routeTree = rootRoute.addChildren([indexRoute, notFoundRoute])
 const router = createRouter({ 
   routeTree,
+  defaultPreload: 'intent',
 })
 
 // Register the router instance for type safety
